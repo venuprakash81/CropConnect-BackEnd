@@ -13,8 +13,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/warehouses")
 @CrossOrigin(origins = {
-        "http://localhost:3000",
-        "http://localhost:5173"
+        "https://cropconnect-venuprakash.vercel.app"
 })
 public class WarehouseController {
 
