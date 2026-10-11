@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/farmer-earnings")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "https://cropconnect-venuprakash.vercel.app")
 public class FarmerEarningsController {
 
     private final FarmerRepository farmerRepository;
