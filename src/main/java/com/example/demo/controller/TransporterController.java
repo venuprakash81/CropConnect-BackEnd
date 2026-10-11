@@ -22,8 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/transporters")
 @CrossOrigin(origins = {
-        "http://localhost:3000",
-        "http://localhost:5173"
+        "https://cropconnect-venuprakash.vercel.app"
 })
 public class TransporterController {
 
