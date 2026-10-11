@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://cropconnect-venuprakash.vercel.app")
 public class AdminController {
 
     @Autowired
