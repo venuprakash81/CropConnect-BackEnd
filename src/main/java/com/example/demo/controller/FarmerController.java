@@ -25,7 +25,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/farmers")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://cropconnect-venuprakash.vercel.app")
 public class FarmerController {
 
     @Autowired
