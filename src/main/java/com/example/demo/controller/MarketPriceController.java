@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/market-prices")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://cropconnect-venuprakash.vercel.app")
 public class MarketPriceController {
 
     private final MarketPriceService service;
