@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/warehouse-bookings")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://cropconnect-venuprakash.vercel.app")
 public class WarehouseBookingController {
 
     @Autowired
