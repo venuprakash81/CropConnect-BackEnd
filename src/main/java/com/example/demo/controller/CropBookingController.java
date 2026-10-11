@@ -13,8 +13,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/crop-bookings")
 @CrossOrigin(origins = {
-        "http://localhost:3000",
-        "http://localhost:5173"
+        "https://cropconnect-venuprakash.vercel.app"
 })
 public class CropBookingController {
 
