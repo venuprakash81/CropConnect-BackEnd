@@ -22,11 +22,9 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/warehouses")
-@CrossOrigin(
-    origins = {
-        "https://cropconnect-venuprakash.vercel.app"
-    }
-)
+@CrossOrigin(origins = {
+    "https://cropconnect-venuprakash.vercel.app"
+})
 public class WarehouseController {
 
     private final WarehouseService warehouseService;
@@ -49,8 +47,8 @@ public class WarehouseController {
         @RequestPart(value = "warehouseDocument", required = false)
         MultipartFile warehouseDocument
     ) {
-        String savedPhotoPath = null;
-        String savedDocumentPath = null;
+        String savedPhoto = null;
+        String savedDocument = null;
 
         try {
             if (warehouse.getWarehouseName() == null
@@ -61,24 +59,44 @@ public class WarehouseController {
                     || warehouse.getEmail().isBlank()
                     || warehouse.getPassword() == null
                     || warehouse.getPassword().isBlank()) {
-                return response(
+                return message(
                     HttpStatus.BAD_REQUEST,
                     "Warehouse name, owner name, email and password are required."
                 );
             }
 
             if (warehouse.getPhone() == null
-                    || warehouse.getPhone().isBlank()) {
-                return response(
+                    || !warehouse.getPhone().matches("\\d{10}")) {
+                return message(
                     HttpStatus.BAD_REQUEST,
-                    "Phone number is required."
+                    "Enter a valid 10-digit phone number."
                 );
             }
 
-            if (warehouse.getTotalStorageCapacity() <= 0) {
-                return response(
+            if (warehouse.getTotalStorageCapacity() == null
+                    || warehouse.getTotalStorageCapacity() <= 0) {
+                return message(
                     HttpStatus.BAD_REQUEST,
                     "Storage capacity must be greater than zero."
+                );
+            }
+
+            if (warehouse.getLatitude() == null
+                    || warehouse.getLongitude() == null
+                    || warehouse.getLatitude() < -90
+                    || warehouse.getLatitude() > 90
+                    || warehouse.getLongitude() < -180
+                    || warehouse.getLongitude() > 180) {
+                return message(
+                    HttpStatus.BAD_REQUEST,
+                    "A valid latitude and longitude are required."
+                );
+            }
+
+            if (warehouse.getPassword().length() < 6) {
+                return message(
+                    HttpStatus.BAD_REQUEST,
+                    "Password must contain at least 6 characters."
                 );
             }
 
@@ -89,89 +107,84 @@ public class WarehouseController {
             Files.createDirectories(uploadDirectory);
 
             if (profilePhoto != null && !profilePhoto.isEmpty()) {
-                validateUpload(profilePhoto, true);
-                savedPhotoPath = saveFile(profilePhoto);
-                warehouse.setProfilePhoto(savedPhotoPath);
+                validateFile(profilePhoto, true);
+                savedPhoto = saveFile(profilePhoto);
+                warehouse.setProfilePhoto(savedPhoto);
             }
 
             if (warehouseDocument != null
                     && !warehouseDocument.isEmpty()) {
-                validateUpload(warehouseDocument, false);
-                savedDocumentPath = saveFile(warehouseDocument);
-                warehouse.setWarehouseDocument(savedDocumentPath);
+                validateFile(warehouseDocument, false);
+                savedDocument = saveFile(warehouseDocument);
+                warehouse.setWarehouseDocument(savedDocument);
             }
 
             Warehouse saved =
                 warehouseService.registerWarehouse(warehouse);
 
-            Map<String, Object> body = new HashMap<>();
-            body.put("success", true);
-            body.put("message", "Warehouse registered successfully.");
-            body.put("warehouseId", saved.getId());
-            body.put("email", saved.getEmail());
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "Warehouse registered successfully.");
+            result.put("warehouseId", saved.getId());
+            result.put("email", saved.getEmail());
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(body);
+            return ResponseEntity.status(HttpStatus.CREATED).body(result);
 
         } catch (DataIntegrityViolationException ex) {
-            deleteIfExists(savedPhotoPath);
-            deleteIfExists(savedDocumentPath);
+            deleteFile(savedPhoto);
+            deleteFile(savedDocument);
 
-            return response(
+            return message(
                 HttpStatus.CONFLICT,
-                "This email or phone number is already registered."
+                "This email is already registered."
             );
 
         } catch (IllegalArgumentException ex) {
-            deleteIfExists(savedPhotoPath);
-            deleteIfExists(savedDocumentPath);
+            deleteFile(savedPhoto);
+            deleteFile(savedDocument);
 
-            return response(HttpStatus.BAD_REQUEST, ex.getMessage());
+            return message(HttpStatus.BAD_REQUEST, ex.getMessage());
 
         } catch (IOException ex) {
-            deleteIfExists(savedPhotoPath);
-            deleteIfExists(savedDocumentPath);
+            deleteFile(savedPhoto);
+            deleteFile(savedDocument);
 
-            return response(
+            return message(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Unable to save the uploaded files."
+                "Unable to save uploaded files."
             );
 
         } catch (Exception ex) {
-            deleteIfExists(savedPhotoPath);
-            deleteIfExists(savedDocumentPath);
+            deleteFile(savedPhoto);
+            deleteFile(savedDocument);
 
-            return response(
+            return message(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Warehouse registration failed. Check the backend logs."
+                "Registration failed. Check the backend application logs."
             );
         }
     }
 
-    private void validateUpload(
-        MultipartFile file,
-        boolean imageOnly
-    ) {
-        String original = file.getOriginalFilename();
+    private void validateFile(MultipartFile file, boolean imageOnly) {
+        String filename = file.getOriginalFilename();
 
-        if (original == null || original.isBlank()) {
-            throw new IllegalArgumentException(
-                "Invalid uploaded filename."
-            );
+        if (filename == null || filename.isBlank()) {
+            throw new IllegalArgumentException("Invalid file.");
         }
 
-        String lower = original.toLowerCase();
+        String name = filename.toLowerCase();
 
-        boolean allowed = imageOnly
-            ? lower.endsWith(".jpg")
-                || lower.endsWith(".jpeg")
-                || lower.endsWith(".png")
-                || lower.endsWith(".webp")
-            : lower.endsWith(".pdf")
-                || lower.endsWith(".jpg")
-                || lower.endsWith(".jpeg")
-                || lower.endsWith(".png");
+        boolean valid = imageOnly
+            ? name.endsWith(".jpg")
+                || name.endsWith(".jpeg")
+                || name.endsWith(".png")
+                || name.endsWith(".webp")
+            : name.endsWith(".pdf")
+                || name.endsWith(".jpg")
+                || name.endsWith(".jpeg")
+                || name.endsWith(".png");
 
-        if (!allowed) {
+        if (!valid) {
             throw new IllegalArgumentException(
                 imageOnly
                     ? "Profile photo must be JPG, JPEG, PNG or WEBP."
@@ -181,7 +194,7 @@ public class WarehouseController {
 
         if (file.getSize() > 5L * 1024 * 1024) {
             throw new IllegalArgumentException(
-                "Each uploaded file must be 5 MB or smaller."
+                "Each file must be 5 MB or smaller."
             );
         }
     }
@@ -204,19 +217,20 @@ public class WarehouseController {
         }
 
         file.transferTo(destination.toFile());
-
         return filename;
     }
 
-    private void deleteIfExists(String filename) {
+    private void deleteFile(String filename) {
         if (filename == null) {
             return;
         }
 
         try {
-            Files.deleteIfExists(uploadDirectory.resolve(filename).normalize());
+            Files.deleteIfExists(
+                uploadDirectory.resolve(filename).normalize()
+            );
         } catch (IOException ignored) {
-            // Cleanup failure must not hide the original error.
+            // Do not hide the original registration error.
         }
     }
 
@@ -227,29 +241,30 @@ public class WarehouseController {
         String email = request.get("email");
         String password = request.get("password");
 
-        if (email == null || password == null) {
-            return response(
+        if (email == null || password == null
+                || email.isBlank() || password.isBlank()) {
+            return message(
                 HttpStatus.BAD_REQUEST,
                 "Email and password are required."
             );
         }
 
-        Optional<Warehouse> result =
+        Optional<Warehouse> warehouse =
             warehouseService.login(email.trim().toLowerCase(), password);
 
-        if (result.isEmpty()) {
-            return response(
+        if (warehouse.isEmpty()) {
+            return message(
                 HttpStatus.UNAUTHORIZED,
                 "Invalid email or password."
             );
         }
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", true);
-        body.put("message", "Login successful.");
-        body.put("warehouse", result.get());
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "Login successful.");
+        result.put("warehouse", warehouse.get());
 
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping
@@ -263,7 +278,7 @@ public class WarehouseController {
             warehouseService.getWarehouseById(id);
 
         if (warehouse.isEmpty()) {
-            return response(HttpStatus.NOT_FOUND, "Warehouse not found.");
+            return message(HttpStatus.NOT_FOUND, "Warehouse not found.");
         }
 
         return ResponseEntity.ok(warehouse.get());
@@ -277,7 +292,7 @@ public class WarehouseController {
             warehouseService.getWarehouseByEmail(email);
 
         if (warehouse.isEmpty()) {
-            return response(HttpStatus.NOT_FOUND, "Warehouse not found.");
+            return message(HttpStatus.NOT_FOUND, "Warehouse not found.");
         }
 
         return ResponseEntity.ok(warehouse.get());
@@ -289,13 +304,11 @@ public class WarehouseController {
         @RequestBody Warehouse warehouse
     ) {
         try {
-            Warehouse updated =
-                warehouseService.updateWarehouse(id, warehouse);
-
-            return ResponseEntity.ok(updated);
-
+            return ResponseEntity.ok(
+                warehouseService.updateWarehouse(id, warehouse)
+            );
         } catch (IllegalArgumentException ex) {
-            return response(HttpStatus.BAD_REQUEST, ex.getMessage());
+            return message(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
     }
 
@@ -309,7 +322,7 @@ public class WarehouseController {
 
         if (currentPassword == null || newPassword == null
                 || newPassword.length() < 6) {
-            return response(
+            return message(
                 HttpStatus.BAD_REQUEST,
                 "Provide the current password and a new password of at least 6 characters."
             );
@@ -322,13 +335,9 @@ public class WarehouseController {
                 newPassword
             );
 
-            return response(
-                HttpStatus.OK,
-                "Password changed successfully."
-            );
-
+            return message(HttpStatus.OK, "Password changed successfully.");
         } catch (IllegalArgumentException ex) {
-            return response(HttpStatus.BAD_REQUEST, ex.getMessage());
+            return message(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
     }
 
@@ -337,24 +346,20 @@ public class WarehouseController {
         try {
             warehouseService.deleteWarehouse(id);
 
-            return response(
-                HttpStatus.OK,
-                "Warehouse deleted successfully."
-            );
-
+            return message(HttpStatus.OK, "Warehouse deleted successfully.");
         } catch (IllegalArgumentException ex) {
-            return response(HttpStatus.NOT_FOUND, ex.getMessage());
+            return message(HttpStatus.NOT_FOUND, ex.getMessage());
         }
     }
 
-    private ResponseEntity<Map<String, Object>> response(
+    private ResponseEntity<Map<String, Object>> message(
         HttpStatus status,
-        String message
+        String text
     ) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", status.is2xxSuccessful());
-        body.put("message", message);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", status.is2xxSuccessful());
+        result.put("message", text);
 
-        return ResponseEntity.status(status).body(body);
+        return ResponseEntity.status(status).body(result);
     }
 }
